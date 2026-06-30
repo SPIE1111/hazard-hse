@@ -1,18 +1,18 @@
 // Service Worker · Hazard HSE
 // Cachea el "shell" de la app para que cargue sin conexión.
-const CACHE = 'hazard-hse-v1';
+const CACHE = 'hazard-hse-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
 ];
-
+ 
 // Instalar: precachear el shell
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
   self.skipWaiting();
 });
-
+ 
 // Activar: limpiar cachés viejos
 self.addEventListener('activate', (e) => {
   e.waitUntil(
@@ -22,7 +22,7 @@ self.addEventListener('activate', (e) => {
   );
   self.clients.claim();
 });
-
+ 
 // Fetch: red primero para llamadas a Supabase; cache primero para el shell.
 self.addEventListener('fetch', (e) => {
   const url = e.request.url;
