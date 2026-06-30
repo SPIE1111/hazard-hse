@@ -954,23 +954,51 @@ function setScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classLi
 // Guarda foto tomada desde la pantalla de inicio
 let FOTO_PREVIA = null;
 
+// Comprime y redimensiona una imagen antes de guardarla (evita payloads de >10MB).
+// Devuelve { base64, mime, nombre } con la imagen ya optimizada.
+function comprimirFoto(file, maxLado = 1600, calidad = 0.7) {
+  return new Promise((resolve, reject) => {
+    // Si no es imagen (ej. video), devolver tal cual en base64
+    if (!file.type.startsWith('image/')) {
+      const r = new FileReader();
+      r.onload = e => resolve({ base64: e.target.result.split(',')[1], mime: file.type || 'application/octet-stream', nombre: file.name || 'archivo' });
+      r.onerror = reject;
+      r.readAsDataURL(file);
+      return;
+    }
+    const r = new FileReader();
+    r.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxLado) { height = Math.round(height * maxLado / width); width = maxLado; }
+        else if (height > maxLado) { width = Math.round(width * maxLado / height); height = maxLado; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', calidad);
+        resolve({ base64: dataUrl.split(',')[1], mime: 'image/jpeg', nombre: (file.name || 'evidencia').replace(/\.[^.]+$/, '') + '.jpg' });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
 function iniciarConFoto(){
   document.getElementById('inicio-fi').click();
 }
 
-function onInicioFoto(){
+async function onInicioFoto(){
   const f = document.getElementById('inicio-fi').files[0];
   if(!f) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    FOTO_PREVIA = { base64: e.target.result.split(',')[1], mime: f.type||'image/jpeg', nombre: f.name||'evidencia.jpg' };
-    // Mostrar preview
-    const img = document.getElementById('inicio-foto-img');
-    if(img) img.src = e.target.result;
-    const prev = document.getElementById('inicio-foto-preview');
-    if(prev) prev.style.display = 'block';
-  };
-  reader.readAsDataURL(f);
+  FOTO_PREVIA = await comprimirFoto(f);
+  const img = document.getElementById('inicio-foto-img');
+  if(img) img.src = 'data:'+FOTO_PREVIA.mime+';base64,'+FOTO_PREVIA.base64;
+  const prev = document.getElementById('inicio-foto-preview');
+  if(prev) prev.style.display = 'block';
 }
 // ─────────────────────────────────────────────────────────────
 // HSE y parque ahora se resuelven en el servidor (Edge Function validate-employee).
@@ -1333,33 +1361,26 @@ function selViol(val){
 const FOTOS = { evidencia: null, cierre: null };
 
 // Nueva función con botones cámara/galería separados
-function onPhoto2(previewId, inputId, imgElemId) {
+async function onPhoto2(previewId, inputId, imgElemId) {
   const f = document.getElementById(inputId).files[0];
   if (!f) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const b64 = e.target.result.split(',')[1];
-    const mime = f.type || 'image/jpeg';
-    const name = f.name || 'foto.jpg';
-    // Guardar en hidden inputs
-    if(previewId === 'pb1'){
-      document.getElementById('fi1-data').value = b64;
-      document.getElementById('fi1-mime').value = mime;
-      document.getElementById('fi1-name').value = name;
-      FOTOS.evidencia = { base64: b64, mime, nombre: name };
-    } else {
-      document.getElementById('fi2-data').value = b64;
-      document.getElementById('fi2-mime').value = mime;
-      document.getElementById('fi2-name').value = name;
-      FOTOS.cierre = { base64: b64, mime, nombre: name };
-    }
-    // Mostrar preview
-    const imgEl = document.getElementById(imgElemId+'-img');
-    if(imgEl){ imgEl.src = e.target.result; }
-    const previewDiv = document.getElementById(previewId);
-    if(previewDiv){ previewDiv.style.display = 'block'; }
-  };
-  reader.readAsDataURL(f);
+  const foto = await comprimirFoto(f);
+  const b64 = foto.base64, mime = foto.mime, name = foto.nombre;
+  if(previewId === 'pb1'){
+    document.getElementById('fi1-data').value = b64;
+    document.getElementById('fi1-mime').value = mime;
+    document.getElementById('fi1-name').value = name;
+    FOTOS.evidencia = { base64: b64, mime, nombre: name };
+  } else {
+    document.getElementById('fi2-data').value = b64;
+    document.getElementById('fi2-mime').value = mime;
+    document.getElementById('fi2-name').value = name;
+    FOTOS.cierre = { base64: b64, mime, nombre: name };
+  }
+  const imgEl = document.getElementById(imgElemId+'-img');
+  if(imgEl){ imgEl.src = 'data:'+mime+';base64,'+b64; }
+  const previewDiv = document.getElementById(previewId);
+  if(previewDiv){ previewDiv.style.display = 'block'; }
 }
 
 function clearPhoto(previewId, imgElemId, camId, galId){
@@ -1388,20 +1409,14 @@ function onPhoto(wrapId, inputId, txtId) {
   document.getElementById(txtId).innerHTML =
     `<strong>📷 ${f.name}</strong>${(f.size / 1024).toFixed(0)} KB · Toca para cambiar`;
 
-  // Convertir a base64 y guardar en almacén global
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    // base64 puro (sin el prefijo data:image/...;base64,)
-    const base64 = e.target.result.split(',')[1];
-    const mime   = f.type;
-    const nombre = f.name;
+  // Comprimir y guardar en almacén global
+  comprimirFoto(f).then(foto => {
     if (inputId === 'fi1') {
-      FOTOS.evidencia = { base64, mime, nombre };
+      FOTOS.evidencia = foto;
     } else if (inputId === 'fi2') {
-      FOTOS.cierre = { base64, mime, nombre };
+      FOTOS.cierre = foto;
     }
-  };
-  reader.readAsDataURL(f);
+  });
 }
 function copyQRParque(){
   const p=document.getElementById('f-parque-val').value;
@@ -1731,5 +1746,4 @@ function init(){
 init();
 </script>
 </div></body>
-</div></div></body></html>
 </div></div></body></html>
