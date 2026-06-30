@@ -994,10 +994,32 @@ function showOffline(){
 // ════════════════════════════════════════════
 const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; // pública: RLS protege la tabla empleados
+
+
 let _nominaTimer = null;
 let _empValidado = null; // empleado devuelto por la Edge Function
 
 // Valida el número de nómina contra la Edge Function (con pequeño debounce).
+// Caché de empleados validados (para login sin conexión)
+async function cacheEmpleado(emp){
+  try {
+    const db = await idbOpen();
+    const tx = db.transaction('employees', 'readwrite');
+    tx.objectStore('employees').put(emp);
+  } catch(_e) { /* si falla el caché, no rompe el login online */ }
+}
+async function getEmpleadoCacheado(nomina){
+  try {
+    const db = await idbOpen();
+    return await new Promise((res) => {
+      const tx = db.transaction('employees', 'readonly');
+      const r = tx.objectStore('employees').get(nomina);
+      r.onsuccess = () => res(r.result || null);
+      r.onerror = () => res(null);
+    });
+  } catch(_e) { return null; }
+}
+
 function loginNominaInput(){
   const val=(document.getElementById('l-nomina').value||'').trim();
   const empWrap=document.getElementById('l-emp-wrap');
@@ -1036,6 +1058,7 @@ async function validarNomina(nomina){
       parque:e.office_name||'',
       _hse:e.hse_name?{nombre:e.hse_name,email:e.hse_email}:null
     };
+    cacheEmpleado(_empValidado); // guardar para login offline futuro
     // Pintar nombre, parque y HSE verificados
     document.getElementById('l-emp-nombre').textContent=e.employee_name;
     document.getElementById('l-emp-wrap').style.display='block';
@@ -1048,7 +1071,24 @@ async function validarNomina(nomina){
       hseWrap.style.display='block';
     }
   }catch(err){
-    if(errEl){errEl.textContent='Error de conexión. Verifica tu internet.';errEl.classList.add('show');}
+    // Sin conexión: intentar login con datos cacheados de una sesión previa
+    const cached = await getEmpleadoCacheado(nomina);
+    if (cached) {
+      _empValidado = cached;
+      document.getElementById('l-emp-nombre').textContent = cached.nombre + ' (sin conexión)';
+      document.getElementById('l-emp-wrap').style.display = 'block';
+      document.getElementById('l-parque-val').textContent = cached.parque || 'Parque (lo indicas en el reporte)';
+      document.getElementById('l-parque-wrap').style.display = 'block';
+      const hseWrap = document.getElementById('l-hse-wrap');
+      if (cached._hse && hseWrap) {
+        document.getElementById('l-hse-nombre').textContent = cached._hse.nombre;
+        document.getElementById('l-hse-email').textContent = cached._hse.email || '—';
+        hseWrap.style.display = 'block';
+      }
+      if(errEl) errEl.classList.remove('show');
+    } else {
+      if(errEl){errEl.textContent='Sin conexión y esta nómina no se ha usado antes en este dispositivo. Conéctate una vez para habilitarla.';errEl.classList.add('show');}
+    }
   }
 }
 
@@ -1508,11 +1548,13 @@ const IDB_NAME = 'hazard-hse-db';
 const IDB_STORE = 'pending';
 function idbOpen(){
   return new Promise((res, rej) => {
-    const r = indexedDB.open(IDB_NAME, 1);
+    const r = indexedDB.open(IDB_NAME, 2);
     r.onupgradeneeded = () => {
       const db = r.result;
       if (!db.objectStoreNames.contains(IDB_STORE))
         db.createObjectStore(IDB_STORE, { keyPath: 'HazardID' });
+      if (!db.objectStoreNames.contains('employees'))
+        db.createObjectStore('employees', { keyPath: 'nomina' });
     };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -1689,4 +1731,5 @@ function init(){
 init();
 </script>
 </div></body>
+</div></div></body></html>
 </div></div></body></html>
