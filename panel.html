@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Panel HSE · SPIE</title>
+<style>
+  :root{
+    --ink:#0f2233; --steel:#0a3d62; --line:#dce3ea; --bg:#f4f6f8;
+    --amber:#f5b800; --red:#c0392b; --green:#1a8a4a; --muted:#6b7a89; --white:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .hide{display:none!important}
+  /* Login */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:32px;width:100%;max-width:380px;box-shadow:0 8px 30px rgba(10,61,98,.08)}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .brand .mark{width:34px;height:34px;background:var(--steel);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--amber);font-weight:800;font-size:15px}
+  h1{font-size:19px;font-weight:700}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 5px}
+  input,select,textarea{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;font-size:15px;font-family:inherit;background:#fbfcfd}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--steel)}
+  .btn{background:var(--steel);color:#fff;border:none;padding:12px 18px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;width:100%;margin-top:18px}
+  .btn:hover{background:#08324f}
+  .btn.sm{width:auto;padding:8px 14px;font-size:13px;margin:0}
+  .btn.ghost{background:transparent;color:var(--steel);border:1px solid var(--line)}
+  .err{color:var(--red);font-size:13px;margin-top:12px;display:none}
+  .err.show{display:block}
+  /* App */
+  header{background:var(--steel);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+  header .who{font-size:13px;opacity:.9}
+  header .mark{width:30px;height:30px;background:rgba(255,255,255,.12);border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:var(--amber);font-weight:800;margin-right:10px}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .toolbar input,.toolbar select{width:auto;flex:1;min-width:130px}
+  .stat{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600}
+  .pill b{color:var(--steel)}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:11px 12px;border-bottom:2px solid var(--line);background:#fafbfc}
+  td{padding:11px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafcff;cursor:pointer}
+  .tag{display:inline-block;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:600}
+  .tag.abierto{background:#fff3d6;color:#8a6d00}
+  .tag.cerrado{background:#daf5e5;color:var(--green)}
+  .tag.proceso{background:#e3edf7;color:var(--steel)}
+  .lvl{font-weight:700}
+  .lvl.A,.lvl.B{color:var(--red)}
+  .lvl.C{color:#c77700}
+  .lvl.D,.lvl.E{color:var(--green)}
+  /* Modal */
+  #modal{position:fixed;inset:0;background:rgba(15,34,51,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
+  #modal.show{display:flex}
+  .sheet{background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow:auto}
+  .sheet-h{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}
+  .sheet-b{padding:22px}
+  .kv{display:grid;grid-template-columns:38% 62%;gap:2px 0;font-size:14px;margin-bottom:16px}
+  .kv .k{color:var(--muted);padding:6px 0}
+  .kv .v{padding:6px 0;font-weight:500}
+  .x{cursor:pointer;color:var(--muted);font-size:22px;line-height:1;background:none;border:none}
+  .cmt{background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+  .cmt .meta{color:var(--muted);font-size:12px;margin-bottom:3px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .muted{color:var(--muted);font-size:13px}
+  h3{font-size:15px;margin:18px 0 10px;font-weight:700}
+  @media(max-width:640px){.kv{grid-template-columns:1fr}.hide-sm{display:none}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="card">
+    <div class="brand"><div class="mark">HSE</div><h1>Panel HSE</h1></div>
+    <p class="sub">Gestión de reportes · SPIE</p>
+    <label>Usuario</label>
+    <input id="l-user" autocomplete="username" placeholder="Nómina o usuario"/>
+    <label id="l-pass-lbl">Contraseña</label>
+    <input id="l-pass" type="password" autocomplete="current-password" placeholder="••••••••"/>
+    <div id="l-pass2-wrap" class="hide">
+      <label>Confirma la contraseña</label>
+      <input id="l-pass2" type="password" placeholder="••••••••"/>
+      <p class="muted" style="margin-top:6px">Primer ingreso: crea tu contraseña (mínimo 8 caracteres).</p>
+    </div>
+    <button class="btn" onclick="doLogin()" id="l-btn">Entrar</button>
+    <p class="err" id="l-err"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hide">
+  <header>
+    <div><span class="mark">HSE</span><b>Panel HSE</b></div>
+    <div class="row">
+      <span class="who" id="who"></span>
+      <button class="btn sm ghost" style="color:#fff;border-color:rgba(255,255,255,.3)" onclick="logout()">Salir</button>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="stat" id="stats"></div>
+    <div class="toolbar">
+      <input id="q" placeholder="Buscar por empleado, parque, código..." oninput="render()"/>
+      <select id="fEstatus" onchange="render()">
+        <option value="">Todos los estatus</option>
+        <option>Abierto</option><option>En proceso</option><option>Cerrado</option>
+      </select>
+      <select id="fNivel" onchange="render()">
+        <option value="">Todos los niveles</option>
+        <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
+      </select>
+      <button class="btn sm" onclick="exportCSV()">Exportar Excel</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Código</th><th>Fecha</th><th class="hide-sm">Empleado</th>
+        <th>Parque</th><th>Nivel</th><th>Estatus</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="muted" id="empty" style="text-align:center;padding:30px;display:none">No hay hazards que coincidan.</p>
+  </div>
+</div>
+
+<!-- MODAL DETALLE -->
+<div id="modal">
+  <div class="sheet">
+    <div class="sheet-h">
+      <b id="m-code"></b>
+      <button class="x" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="sheet-b" id="m-body"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; 
+let SESSION = null, HAZARDS = [], _needsPass = false;
+
+async function api(action, extra={}){
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/panel-api`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`},
+    body:JSON.stringify({action, user:SESSION?.username||document.getElementById('l-user').value.trim(), ...extra})
+  });
+  return r.json();
+}
+
+async function doLogin(){
+  const err=document.getElementById('l-err');
+  const user=document.getElementById('l-user').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  err.classList.remove('show');
+  if(!user||!pass){err.textContent='Ingresa usuario y contraseña.';err.classList.add('show');return;}
+
+  if(_needsPass){
+    const p2=document.getElementById('l-pass2').value;
+    if(pass!==p2){err.textContent='Las contraseñas no coinciden.';err.classList.add('show');return;}
+    const s=await api('set-password',{user,pass});
+    if(!s.ok){err.textContent=s.error||'No se pudo crear la contraseña.';err.classList.add('show');return;}
+    _needsPass=false;
+    document.getElementById('l-pass2-wrap').classList.add('hide');
+  }
+
+  const d=await api('login',{user,pass});
+  if(d.needs_password){
+    _needsPass=true;
+    document.getElementById('l-pass2-wrap').classList.remove('hide');
+    document.getElementById('l-pass-lbl').textContent='Crea tu contraseña';
+    err.textContent='Primer ingreso: crea tu contraseña y confírmala.';err.classList.add('show');
+    return;
+  }
+  if(!d.ok){err.textContent=d.error||'Usuario o contraseña incorrectos.';err.classList.add('show');return;}
+  SESSION=d.user;
+  document.getElementById('login').classList.add('hide');
+  document.getElementById('app').classList.remove('hide');
+  document.getElementById('who').textContent=`${SESSION.full_name} · ${SESSION.role==='admin'?'Administrador':SESSION.country_code}`;
+  await loadHazards();
+}
+
+async function loadHazards(){
+  const d=await api('list');
+  HAZARDS = d.ok ? d.hazards : [];
+  render();
+}
+
+function render(){
+  const q=(document.getElementById('q').value||'').toLowerCase();
+  const fe=document.getElementById('fEstatus').value;
+  const fn=document.getElementById('fNivel').value;
+  const filtered=HAZARDS.filter(h=>{
+    const txt=`${h.hazard_code} ${h.employee_name} ${h.parque} ${h.tipo_riesgo}`.toLowerCase();
+    return (!q||txt.includes(q)) && (!fe||(h.estatus||'').includes(fe)) && (!fn||h.nivel===fn);
+  });
+  const abiertos=HAZARDS.filter(h=>(h.estatus||'').toLowerCase().includes('abiert')).length;
+  const cerrados=HAZARDS.filter(h=>(h.estatus||'').toLowerCase().includes('cerrad')).length;
+  document.getElementById('stats').innerHTML=
+    `<span class="pill">Total <b>${HAZARDS.length}</b></span>`+
+    `<span class="pill">Abiertos <b>${abiertos}</b></span>`+
+    `<span class="pill">Cerrados <b>${cerrados}</b></span>`;
+  const rows=document.getElementById('rows');
+  rows.innerHTML=filtered.map(h=>{
+    const est=(h.estatus||'Abierto').toLowerCase();
+    const cls=est.includes('cerrad')?'cerrado':est.includes('proces')?'proceso':'abierto';
+    const fecha=new Date(h.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'});
+    return `<tr onclick='openHazard(${JSON.stringify(h.hazard_code)})'>
+      <td><b>${h.hazard_code}</b></td><td>${fecha}</td>
+      <td class="hide-sm">${h.employee_name||''}</td>
+      <td>${h.parque||''}</td>
+      <td><span class="lvl ${h.nivel||''}">${h.nivel||'—'}</span></td>
+      <td><span class="tag ${cls}">${h.estatus||'Abierto'}</span></td></tr>`;
+  }).join('');
+  document.getElementById('empty').style.display=filtered.length?'none':'block';
+}
+
+async function openHazard(code){
+  const h=HAZARDS.find(x=>x.hazard_code===code);
+  if(!h)return;
+  document.getElementById('m-code').textContent=h.hazard_code;
+  const kv=(k,v)=>v?`<div class="k">${k}</div><div class="v">${v}</div>`:'';
+  let foto='';
+  if(h.foto_evidencia_url){foto=`<a class="btn sm ghost" id="foto-link" target="_blank" href="#">Ver foto de evidencia</a>`;}
+  document.getElementById('m-body').innerHTML=`
+    <div class="kv">
+      ${kv('Empleado', (h.employee_name||'')+' · #'+(h.payroll_no||''))}
+      ${kv('Fecha', new Date(h.created_at).toLocaleString('es-MX'))}
+      ${kv('Parque', h.parque)}
+      ${kv('Tipo de riesgo', h.tipo_riesgo)}
+      ${kv('Clasificación', h.clasif_item)}
+      ${kv('Nivel', h.nivel)}
+      ${kv('Descripción', h.descripcion)}
+      ${kv('Acciones', h.acciones)}
+      ${kv('HSE', h.hse_name)}
+    </div>
+    ${foto}
+    <h3>Estatus</h3>
+    <div class="row">
+      <select id="m-status" style="flex:1">
+        <option ${h.estatus==='Abierto'?'selected':''}>Abierto</option>
+        <option ${h.estatus==='En proceso'?'selected':''}>En proceso</option>
+        <option ${h.estatus==='Cerrado'?'selected':''}>Cerrado</option>
+      </select>
+      <button class="btn sm" onclick="saveStatus('${h.hazard_code}')">Guardar</button>
+    </div>
+    <h3>Seguimiento</h3>
+    <div id="m-comments" class="muted">Cargando...</div>
+    <div class="row" style="margin-top:10px">
+      <input id="m-newcomment" placeholder="Agregar comentario o acción..." style="flex:1"/>
+      <button class="btn sm" onclick="addComment('${h.hazard_code}')">Añadir</button>
+    </div>`;
+  document.getElementById('modal').classList.add('show');
+  if(h.foto_evidencia_url){
+    // Firmar URL de foto vía API no expuesta aquí; enlace directo al storage firmado se maneja aparte
+    const link=document.getElementById('foto-link');
+    if(link) link.onclick=(e)=>{e.preventDefault();alert('La foto se incluye en el correo de notificación. Vista directa disponible en una próxima versión.');};
+  }
+  loadComments(h.hazard_code);
+}
+
+async function loadComments(code){
+  const d=await api('get-comments',{code});
+  const el=document.getElementById('m-comments');
+  if(!d.ok||!d.comments.length){el.innerHTML='<span class="muted">Sin comentarios aún.</span>';return;}
+  el.innerHTML=d.comments.map(c=>
+    `<div class="cmt"><div class="meta">${c.author} · ${new Date(c.at).toLocaleString('es-MX')}</div>${c.comment}</div>`
+  ).join('');
+}
+
+async function saveStatus(code){
+  const status=document.getElementById('m-status').value;
+  const d=await api('status',{code,status});
+  if(d.ok){const h=HAZARDS.find(x=>x.hazard_code===code);if(h)h.estatus=status;render();alert('Estatus actualizado.');}
+  else alert(d.error||'No se pudo actualizar.');
+}
+
+async function addComment(code){
+  const comment=document.getElementById('m-newcomment').value.trim();
+  if(!comment)return;
+  const d=await api('comment',{code,comment});
+  if(d.ok){document.getElementById('m-newcomment').value='';loadComments(code);}
+  else alert(d.error||'No se pudo agregar.');
+}
+
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+function logout(){SESSION=null;location.reload();}
+
+function exportCSV(){
+  const cols=['hazard_code','created_at','country','employee_name','payroll_no','parque','tipo_riesgo','clasif_item','nivel','descripcion','acciones','estatus','hse_name'];
+  const head=cols.join(',');
+  const body=HAZARDS.map(h=>cols.map(c=>`"${String(h[c]??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+head+'\n'+body],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`hazards_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+</script>
+</body>
+</html>
