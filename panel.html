@@ -68,6 +68,7 @@
   h3{font-size:15px;margin:18px 0 10px;font-weight:700}
   @media(max-width:640px){.kv{grid-template-columns:1fr}.hide-sm{display:none}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -108,7 +109,7 @@
         <option>Abierto</option><option>En proceso</option><option>Cerrado</option>
       </select>
       <select id="fNivel" onchange="render()">
-        <option value="">Todos los niveles</option>
+        <option value="">Todas las categorías</option>
         <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
       </select>
       <button class="btn sm" onclick="exportCSV()">Exportar Excel</button>
@@ -116,7 +117,7 @@
     <table>
       <thead><tr>
         <th>Código</th><th>Fecha</th><th class="hide-sm">Empleado</th>
-        <th>Parque</th><th>Nivel</th><th>Estatus</th>
+        <th>Parque</th><th>Categoría</th><th>Estatus</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -137,7 +138,7 @@
 
 <script>
 const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; // pública: RLS protege la tabla empleados
 let SESSION = null, HAZARDS = [], _needsPass = false;
 
 async function api(action, extra={}){
@@ -222,7 +223,13 @@ async function openHazard(code){
   document.getElementById('m-code').textContent=h.hazard_code;
   const kv=(k,v)=>v?`<div class="k">${k}</div><div class="v">${v}</div>`:'';
   let foto='';
-  if(h.foto_evidencia_url){foto=`<a class="btn sm ghost" id="foto-link" target="_blank" href="#">Ver foto de evidencia</a>`;}
+  if(h.foto_sharepoint_url){
+    foto=`<h3>Evidencia fotográfica</h3>
+      <a href="${h.foto_sharepoint_url}" target="_blank" rel="noopener">
+        <img src="${h.foto_sharepoint_url}" alt="Evidencia" style="max-width:100%;max-height:240px;border-radius:9px;border:1px solid var(--line)" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"/>
+        <span class="btn sm ghost" style="display:none">Abrir foto en SharePoint</span>
+      </a>`;
+  }
   document.getElementById('m-body').innerHTML=`
     <div class="kv">
       ${kv('Empleado', (h.employee_name||'')+' · #'+(h.payroll_no||''))}
@@ -245,18 +252,13 @@ async function openHazard(code){
       </select>
       <button class="btn sm" onclick="saveStatus('${h.hazard_code}')">Guardar</button>
     </div>
-    <h3>Seguimiento</h3>
+    <h3>Seguimiento y acciones</h3>
     <div id="m-comments" class="muted">Cargando...</div>
     <div class="row" style="margin-top:10px">
       <input id="m-newcomment" placeholder="Agregar comentario o acción..." style="flex:1"/>
       <button class="btn sm" onclick="addComment('${h.hazard_code}')">Añadir</button>
     </div>`;
   document.getElementById('modal').classList.add('show');
-  if(h.foto_evidencia_url){
-    // Firmar URL de foto vía API no expuesta aquí; enlace directo al storage firmado se maneja aparte
-    const link=document.getElementById('foto-link');
-    if(link) link.onclick=(e)=>{e.preventDefault();alert('La foto se incluye en el correo de notificación. Vista directa disponible en una próxima versión.');};
-  }
   loadComments(h.hazard_code);
 }
 
@@ -287,15 +289,47 @@ async function addComment(code){
 function closeModal(){document.getElementById('modal').classList.remove('show');}
 function logout(){SESSION=null;location.reload();}
 
-function exportCSV(){
-  const cols=['hazard_code','created_at','country','employee_name','payroll_no','parque','tipo_riesgo','clasif_item','nivel','descripcion','acciones','estatus','hse_name'];
-  const head=cols.join(',');
-  const body=HAZARDS.map(h=>cols.map(c=>`"${String(h[c]??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob(['\ufeff'+head+'\n'+body],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`hazards_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
+async function exportCSV(){
+  // Traer hazards con resumen de seguimiento + todos los comentarios
+  const [exp, com] = await Promise.all([
+    api('export'),
+    api('all-comments')
+  ]);
+  const rows = exp.ok ? exp.rows : HAZARDS;
+  const comments = com.ok ? com.comments : [];
+
+  // Hoja 1: Hazards (con columna de seguimiento resumido)
+  const hoja1 = rows.map(h=>({
+    'Código': h.hazard_code,
+    'Fecha': h.created_at ? new Date(h.created_at).toLocaleString('es-MX') : '',
+    'País': h.country,
+    'Empleado': h.employee_name,
+    'Nómina': h.payroll_no,
+    'Parque': h.parque,
+    'Categoría': h.nivel,
+    'Tipo de riesgo': h.tipo_riesgo,
+    'Clasificación': h.clasif_item,
+    'Descripción': h.descripcion,
+    'Acciones': h.acciones,
+    'Estatus': h.estatus,
+    'Fecha cierre': h.fecha_cierre || '',
+    'HSE': h.hse_name,
+    'Foto (SharePoint)': h.foto_sharepoint_url || '',
+    'Seguimiento (resumen)': h.seguimiento || ''
+  }));
+
+  // Hoja 2: Detalle de seguimiento (un renglón por comentario)
+  const hoja2 = comments.map(c=>({
+    'Código Hazard': c.hazard_code,
+    'Autor': c.author,
+    'Fecha': c.at ? new Date(c.at).toLocaleString('es-MX') : '',
+    'Comentario / Acción': c.comment
+  }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja1), 'Hazards');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja2.length?hoja2:[{'Sin comentarios':''}]), 'Seguimiento');
+  XLSX.writeFile(wb, `hazards_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
