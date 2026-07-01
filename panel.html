@@ -68,10 +68,10 @@
   h3{font-size:15px;margin:18px 0 10px;font-weight:700}
   @media(max-width:640px){.kv{grid-template-columns:1fr}.hide-sm{display:none}}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="xlsx.min.js"></script>
 </head>
 <body>
-
+ 
 <!-- LOGIN -->
 <div id="login">
   <div class="card">
@@ -90,7 +90,7 @@
     <p class="err" id="l-err"></p>
   </div>
 </div>
-
+ 
 <!-- APP -->
 <div id="app" class="hide">
   <header>
@@ -124,7 +124,7 @@
     <p class="muted" id="empty" style="text-align:center;padding:30px;display:none">No hay hazards que coincidan.</p>
   </div>
 </div>
-
+ 
 <!-- MODAL DETALLE -->
 <div id="modal">
   <div class="sheet">
@@ -135,12 +135,12 @@
     <div class="sheet-b" id="m-body"></div>
   </div>
 </div>
-
+ 
 <script>
 const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; // pública: RLS protege la tabla empleados
 let SESSION = null, HAZARDS = [], _needsPass = false;
-
+ 
 async function api(action, extra={}){
   const r = await fetch(`${SUPABASE_URL}/functions/v1/panel-api`,{
     method:'POST',
@@ -149,14 +149,14 @@ async function api(action, extra={}){
   });
   return r.json();
 }
-
+ 
 async function doLogin(){
   const err=document.getElementById('l-err');
   const user=document.getElementById('l-user').value.trim();
   const pass=document.getElementById('l-pass').value;
   err.classList.remove('show');
   if(!user||!pass){err.textContent='Ingresa usuario y contraseña.';err.classList.add('show');return;}
-
+ 
   if(_needsPass){
     const p2=document.getElementById('l-pass2').value;
     if(pass!==p2){err.textContent='Las contraseñas no coinciden.';err.classList.add('show');return;}
@@ -165,7 +165,7 @@ async function doLogin(){
     _needsPass=false;
     document.getElementById('l-pass2-wrap').classList.add('hide');
   }
-
+ 
   const d=await api('login',{user,pass});
   if(d.needs_password){
     _needsPass=true;
@@ -181,13 +181,13 @@ async function doLogin(){
   document.getElementById('who').textContent=`${SESSION.full_name} · ${SESSION.role==='admin'?'Administrador':SESSION.country_code}`;
   await loadHazards();
 }
-
+ 
 async function loadHazards(){
   const d=await api('list');
   HAZARDS = d.ok ? d.hazards : [];
   render();
 }
-
+ 
 function render(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const fe=document.getElementById('fEstatus').value;
@@ -216,7 +216,7 @@ function render(){
   }).join('');
   document.getElementById('empty').style.display=filtered.length?'none':'block';
 }
-
+ 
 async function openHazard(code){
   const h=HAZARDS.find(x=>x.hazard_code===code);
   if(!h)return;
@@ -261,7 +261,7 @@ async function openHazard(code){
   document.getElementById('modal').classList.add('show');
   loadComments(h.hazard_code);
 }
-
+ 
 async function loadComments(code){
   const d=await api('get-comments',{code});
   const el=document.getElementById('m-comments');
@@ -270,14 +270,14 @@ async function loadComments(code){
     `<div class="cmt"><div class="meta">${c.author} · ${new Date(c.at).toLocaleString('es-MX')}</div>${c.comment}</div>`
   ).join('');
 }
-
+ 
 async function saveStatus(code){
   const status=document.getElementById('m-status').value;
   const d=await api('status',{code,status});
   if(d.ok){const h=HAZARDS.find(x=>x.hazard_code===code);if(h)h.estatus=status;render();alert('Estatus actualizado.');}
   else alert(d.error||'No se pudo actualizar.');
 }
-
+ 
 async function addComment(code){
   const comment=document.getElementById('m-newcomment').value.trim();
   if(!comment)return;
@@ -285,11 +285,12 @@ async function addComment(code){
   if(d.ok){document.getElementById('m-newcomment').value='';loadComments(code);}
   else alert(d.error||'No se pudo agregar.');
 }
-
+ 
 function closeModal(){document.getElementById('modal').classList.remove('show');}
 function logout(){SESSION=null;location.reload();}
-
+ 
 async function exportCSV(){
+  if (typeof XLSX === 'undefined') { alert('La librería de Excel no cargó. Verifica que xlsx.min.js esté subido junto al panel.'); return; }
   // Traer hazards con resumen de seguimiento + todos los comentarios
   const [exp, com] = await Promise.all([
     api('export'),
@@ -297,7 +298,7 @@ async function exportCSV(){
   ]);
   const rows = exp.ok ? exp.rows : HAZARDS;
   const comments = com.ok ? com.comments : [];
-
+ 
   // Hoja 1: Hazards (con columna de seguimiento resumido)
   const hoja1 = rows.map(h=>({
     'Código': h.hazard_code,
@@ -317,7 +318,7 @@ async function exportCSV(){
     'Foto (SharePoint)': h.foto_sharepoint_url || '',
     'Seguimiento (resumen)': h.seguimiento || ''
   }));
-
+ 
   // Hoja 2: Detalle de seguimiento (un renglón por comentario)
   const hoja2 = comments.map(c=>({
     'Código Hazard': c.hazard_code,
@@ -325,14 +326,14 @@ async function exportCSV(){
     'Fecha': c.at ? new Date(c.at).toLocaleString('es-MX') : '',
     'Comentario / Acción': c.comment
   }));
-
+ 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja1), 'Hazards');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja2.length?hoja2:[{'Sin comentarios':''}]), 'Seguimiento');
   XLSX.writeFile(wb, `hazards_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
-
+ 
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
 </script>
 </body>
-</html>
+</html
