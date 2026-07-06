@@ -222,7 +222,7 @@ async function loadHazards(){
  
 // Construye el filtro SOLO con las categorías que existen en los hazards
 function buildCategoryFilter(){
-  const presentes = [...new Set(HAZARDS.map(h=>h.nivel).filter(Boolean))];
+const presentes = [...new Set(HAZARDS.map(h=>h.clasif_codigo).filter(Boolean))];
   // Ordenar según el orden del catálogo
   const orden = CLASIFICACION.map(c=>c.codigo);
   presentes.sort((a,b)=> orden.indexOf(a) - orden.indexOf(b));
@@ -237,15 +237,16 @@ function escapeHtml(s){return String(s??'').replace(/[<>&]/g,c=>({'<':'&lt;','>'
 function segCell(code){
   const list = COMMENTS_BY_CODE[code] || [];
   if(!list.length) return '<span class="seg-none">Sin seguimiento</span>';
-  const fmt = c => `<div class="one"><span class="who">${escapeHtml(c.author)}:</span> ${escapeHtml(c.comment)}</div>`;
+  const fmt = (c,i) => `<div class="one"><b>${i+1}.</b> <span class="who">Nómina ${escapeHtml(c.author)}:</span> ${escapeHtml(c.comment)}</div>`;
+
   if(list.length <= 2){
-    return `<div class="seg">${list.map(fmt).join('')}</div>`;
+    return `<div class="seg">${list.map((c,i)=>fmt(c,i)).join('')}</div>`;`
   }
   // Muchos: mostrar 1 + botón expandir
   const id = 'seg-'+code.replace(/[^a-zA-Z0-9]/g,'');
   return `<div class="seg">
       ${fmt(list[0])}
-      <div id="${id}" class="hide">${list.slice(1).map(fmt).join('')}</div>
+      <div id="${id}" class="hide">${list.slice(1).map((c,i)=>fmt(c,i+1)).join('')}</div>
       <button class="seg-toggle" onclick="event.stopPropagation();toggleSeg('${id}',this)">+ ${list.length-1} más</button>
     </div>`;
 }
@@ -261,7 +262,7 @@ function render(){
   const fn=document.getElementById('fNivel').value;
   const filtered=HAZARDS.filter(h=>{
     const txt=`${h.hazard_code} ${h.employee_name} ${h.parque} ${h.tipo_riesgo}`.toLowerCase();
-    return (!q||txt.includes(q)) && (!fe||(h.estatus||'').includes(fe)) && (!fn||h.nivel===fn);
+    return (!q||txt.includes(q)) && (!fe||(h.estatus||'').includes(fe)) && (!fn||h.clasif_codigo===fn);
   });
   const abiertos=HAZARDS.filter(h=>(h.estatus||'').toLowerCase().includes('abiert')).length;
   const cerrados=HAZARDS.filter(h=>(h.estatus||'').toLowerCase().includes('cerrad')).length;
@@ -274,7 +275,7 @@ function render(){
     const est=(h.estatus||'Abierto').toLowerCase();
     const cls=est.includes('cerrad')?'cerrado':est.includes('proces')?'proceso':'abierto';
     const fecha=new Date(h.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'});
-    const cat = h.nivel ? `<span class="catcode">${h.nivel}</span> · ${CAT_LABEL[h.nivel]||''}` : '—';
+    const cat = h.clasif_codigo ? `<span class="catcode">${h.clasif_codigo}</span> · ${CAT_LABEL[h.clasif_codigo]||''}` : '—';
     return `<tr class="main" onclick='openHazard(${JSON.stringify(h.hazard_code)})'>
       <td><b>${h.hazard_code}</b></td><td>${fecha}</td>
       <td class="hide-sm">${escapeHtml(h.employee_name)||''}</td>
@@ -299,7 +300,7 @@ async function openHazard(code){
         <span class="btn sm ghost" style="display:none">Abrir foto en SharePoint</span>
       </a>`;
   }
-  const catTxt = h.nivel ? `${h.nivel} · ${CAT_LABEL[h.nivel]||''}` : '';
+  const catTxt = h.clasif_codigo ? `${h.clasif_codigo} · ${CAT_LABEL[h.clasif_codigo]||''}` : '';
   document.getElementById('m-body').innerHTML=`
     <div class="kv">
       ${kv('Empleado', (h.employee_name||'')+' · #'+(h.payroll_no||''))}
@@ -336,8 +337,8 @@ async function loadComments(code){
   const d=await api('get-comments',{code});
   const el=document.getElementById('m-comments');
   if(!d.ok||!d.comments.length){el.innerHTML='<span class="muted">Sin comentarios aún.</span>';return;}
-  el.innerHTML=d.comments.map(c=>
-    `<div class="cmt"><div class="meta">${escapeHtml(c.author)} · ${new Date(c.at).toLocaleString('es-MX')}</div>${escapeHtml(c.comment)}</div>`
+  el.innerHTML=d.comments.map((c,i)=>
+    `<div class="cmt"><div class="meta"><b>${i+1}.</b> Nómina ${escapeHtml(c.author)} · ${new Date(c.at).toLocaleString('es-MX')}</div>${escapeHtml(c.comment)}</div>`
   ).join('');
 }
  
