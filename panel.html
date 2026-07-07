@@ -46,14 +46,12 @@
   .tag.cerrado{background:#daf5e5;color:var(--green)}
   .tag.proceso{background:#e3edf7;color:var(--steel)}
   .catcode{font-weight:700;color:var(--steel)}
-  /* Seguimiento en tabla */
   .seg{font-size:12.5px;color:var(--muted)}
   .seg .one{margin-bottom:2px}
   .seg .who{color:var(--ink);font-weight:600}
   .seg-toggle{color:var(--steel);cursor:pointer;font-weight:600;font-size:12.5px;background:none;border:none;padding:2px 0}
   .seg-none{color:#aab4bd;font-size:12.5px}
   tr.detail td{background:#fbfcfd;padding-top:0}
-  /* Modal */
   #modal{position:fixed;inset:0;background:rgba(15,34,51,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
   #modal.show{display:flex}
   .sheet{background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow:auto}
@@ -73,7 +71,7 @@
 <script src="xlsx.min.js"></script>
 </head>
 <body>
- 
+
 <div id="login">
   <div class="card">
     <div class="brand"><div class="mark">HSE</div><h1>Panel HSE</h1></div>
@@ -91,7 +89,7 @@
     <p class="err" id="l-err"></p>
   </div>
 </div>
- 
+
 <div id="app" class="hide">
   <header>
     <div><span class="mark">HSE</span><b>Panel HSE</b></div>
@@ -123,7 +121,7 @@
     <p class="muted" id="empty" style="text-align:center;padding:30px;display:none">No hay hazards que coincidan.</p>
   </div>
 </div>
- 
+
 <div id="modal">
   <div class="sheet">
     <div class="sheet-h">
@@ -133,14 +131,13 @@
     <div class="sheet-b" id="m-body"></div>
   </div>
 </div>
- 
+
 <script>
 const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; // pública: RLS protege la tabla empleados
 let SESSION = null, HAZARDS = [], _needsPass = false;
-let COMMENTS_BY_CODE = {}; // seguimiento por hazard, para la tabla
- 
-// Catálogo de clasificación (letra -> nombre). De la app de reportes.
+let COMMENTS_BY_CODE = {};
+
 const CLASIFICACION = [
   {codigo:"A",label:"Transporte"},
   {codigo:"B",label:"Salud / Ergonomía"},
@@ -163,7 +160,7 @@ const CLASIFICACION = [
   {codigo:"S",label:"Medio Ambiente"}
 ];
 const CAT_LABEL = Object.fromEntries(CLASIFICACION.map(c=>[c.codigo, c.label]));
- 
+
 async function api(action, extra={}){
   const r = await fetch(`${SUPABASE_URL}/functions/v1/panel-api`,{
     method:'POST',
@@ -172,14 +169,13 @@ async function api(action, extra={}){
   });
   return r.json();
 }
- 
+
 async function doLogin(){
   const err=document.getElementById('l-err');
   const user=document.getElementById('l-user').value.trim();
   const pass=document.getElementById('l-pass').value;
   err.classList.remove('show');
   if(!user||!pass){err.textContent='Ingresa usuario y contraseña.';err.classList.add('show');return;}
- 
   if(_needsPass){
     const p2=document.getElementById('l-pass2').value;
     if(pass!==p2){err.textContent='Las contraseñas no coinciden.';err.classList.add('show');return;}
@@ -188,7 +184,6 @@ async function doLogin(){
     _needsPass=false;
     document.getElementById('l-pass2-wrap').classList.add('hide');
   }
- 
   const d=await api('login',{user,pass});
   if(d.needs_password){
     _needsPass=true;
@@ -204,11 +199,10 @@ async function doLogin(){
   document.getElementById('who').textContent=`${SESSION.full_name} · ${SESSION.role==='admin'?'Administrador':SESSION.country_code}`;
   await loadHazards();
 }
- 
+
 async function loadHazards(){
   const d=await api('list');
   HAZARDS = d.ok ? d.hazards : [];
-  // Cargar todo el seguimiento de una vez para mostrarlo en la tabla
   const c = await api('all-comments');
   COMMENTS_BY_CODE = {};
   if (c.ok && c.comments) {
@@ -219,43 +213,34 @@ async function loadHazards(){
   buildCategoryFilter();
   render();
 }
- 
-// Construye el filtro SOLO con las categorías que existen en los hazards
+
 function buildCategoryFilter(){
-const presentes = [...new Set(HAZARDS.map(h=>h.clasif_codigo).filter(Boolean))];
-  // Ordenar según el orden del catálogo
+  const presentes = [...new Set(HAZARDS.map(h=>h.clasif_codigo).filter(Boolean))];
   const orden = CLASIFICACION.map(c=>c.codigo);
   presentes.sort((a,b)=> orden.indexOf(a) - orden.indexOf(b));
   const sel = document.getElementById('fNivel');
   sel.innerHTML = '<option value="">Todas las categorías</option>' +
     presentes.map(code=>`<option value="${code}">${code} · ${CAT_LABEL[code]||'—'}</option>`).join('');
 }
- 
+
 function escapeHtml(s){return String(s??'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
- 
-// Seguimiento resumido/expandible para la tabla
+
 function segCell(code){
   const list = COMMENTS_BY_CODE[code] || [];
   if(!list.length) return '<span class="seg-none">Sin seguimiento</span>';
   const fmt = (c,i) => `<div class="one"><b>${i+1}.</b> <span class="who">Nómina ${escapeHtml(c.author)}:</span> ${escapeHtml(c.comment)}</div>`;
-
   if(list.length <= 2){
-    return `<div class="seg">${list.map((c,i)=>fmt(c,i)).join('')}</div>`;`
+    return `<div class="seg">${list.map((c,i)=>fmt(c,i)).join('')}</div>`;
   }
-  // Muchos: mostrar 1 + botón expandir
   const id = 'seg-'+code.replace(/[^a-zA-Z0-9]/g,'');
-  return `<div class="seg">
-      ${fmt(list[0])}
-      <div id="${id}" class="hide">${list.slice(1).map((c,i)=>fmt(c,i+1)).join('')}</div>
-      <button class="seg-toggle" onclick="event.stopPropagation();toggleSeg('${id}',this)">+ ${list.length-1} más</button>
-    </div>`;
+  return `<div class="seg">${fmt(list[0],0)}<div id="${id}" class="hide">${list.slice(1).map((c,i)=>fmt(c,i+1)).join('')}</div><button class="seg-toggle" onclick="event.stopPropagation();toggleSeg('${id}',this)">+ ${list.length-1} más</button></div>`;
 }
 function toggleSeg(id, btn){
   const el=document.getElementById(id);
   const open=el.classList.toggle('hide')===false;
   btn.textContent = open ? 'Ver menos' : `+ ${el.children.length} más`;
 }
- 
+
 function render(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const fe=document.getElementById('fEstatus').value;
@@ -286,7 +271,7 @@ function render(){
   }).join('');
   document.getElementById('empty').style.display=filtered.length?'none':'block';
 }
- 
+
 async function openHazard(code){
   const h=HAZARDS.find(x=>x.hazard_code===code);
   if(!h)return;
@@ -294,11 +279,7 @@ async function openHazard(code){
   const kv=(k,v)=>v?`<div class="k">${k}</div><div class="v">${escapeHtml(v)}</div>`:'';
   let foto='';
   if(h.foto_sharepoint_url){
-    foto=`<h3>Evidencia fotográfica</h3>
-      <a href="${h.foto_sharepoint_url}" target="_blank" rel="noopener">
-        <img src="${h.foto_sharepoint_url}" alt="Evidencia" style="max-width:100%;max-height:240px;border-radius:9px;border:1px solid var(--line)" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"/>
-        <span class="btn sm ghost" style="display:none">Abrir foto en SharePoint</span>
-      </a>`;
+    foto=`<h3>Evidencia fotográfica</h3><a href="${h.foto_sharepoint_url}" target="_blank" rel="noopener"><img src="${h.foto_sharepoint_url}" alt="Evidencia" style="max-width:100%;max-height:240px;border-radius:9px;border:1px solid var(--line)" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"/><span class="btn sm ghost" style="display:none">Abrir foto en SharePoint</span></a>`;
   }
   const catTxt = h.clasif_codigo ? `${h.clasif_codigo} · ${CAT_LABEL[h.clasif_codigo]||''}` : '';
   document.getElementById('m-body').innerHTML=`
@@ -332,7 +313,7 @@ async function openHazard(code){
   document.getElementById('modal').classList.add('show');
   loadComments(h.hazard_code);
 }
- 
+
 async function loadComments(code){
   const d=await api('get-comments',{code});
   const el=document.getElementById('m-comments');
@@ -341,14 +322,14 @@ async function loadComments(code){
     `<div class="cmt"><div class="meta"><b>${i+1}.</b> Nómina ${escapeHtml(c.author)} · ${new Date(c.at).toLocaleString('es-MX')}</div>${escapeHtml(c.comment)}</div>`
   ).join('');
 }
- 
+
 async function saveStatus(code){
   const status=document.getElementById('m-status').value;
   const d=await api('status',{code,status});
   if(d.ok){const h=HAZARDS.find(x=>x.hazard_code===code);if(h)h.estatus=status;render();alert('Estatus actualizado.');}
   else alert(d.error||'No se pudo actualizar.');
 }
- 
+
 async function addComment(code){
   const comment=document.getElementById('m-newcomment').value.trim();
   if(!comment)return;
@@ -356,7 +337,6 @@ async function addComment(code){
   if(d.ok){
     document.getElementById('m-newcomment').value='';
     loadComments(code);
-    // refrescar el seguimiento en la tabla
     const c = await api('all-comments');
     COMMENTS_BY_CODE = {};
     if (c.ok && c.comments) for (const cm of c.comments)
@@ -364,10 +344,10 @@ async function addComment(code){
     render();
   } else alert(d.error||'No se pudo agregar.');
 }
- 
+
 function closeModal(){document.getElementById('modal').classList.remove('show');}
 function logout(){SESSION=null;location.reload();}
- 
+
 async function exportCSV(){
   if (typeof XLSX === 'undefined') { alert('La librería de Excel no cargó. Verifica que xlsx.min.js esté subido junto al panel.'); return; }
   const [exp, com] = await Promise.all([ api('export'), api('all-comments') ]);
@@ -380,7 +360,7 @@ async function exportCSV(){
     'Empleado': h.employee_name,
     'Nómina': h.payroll_no,
     'Parque': h.parque,
-    'Categoría': h.nivel ? (h.nivel+' · '+(CAT_LABEL[h.nivel]||'')) : '',
+    'Categoría': h.clasif_codigo ? (h.clasif_codigo+' · '+(CAT_LABEL[h.clasif_codigo]||'')) : '',
     'Tipo de riesgo': h.tipo_riesgo,
     'Riesgo específico': h.clasif_item,
     'Descripción': h.descripcion,
@@ -393,7 +373,7 @@ async function exportCSV(){
   }));
   const hoja2 = comments.map(c=>({
     'Código Hazard': c.hazard_code,
-    'Autor': c.author,
+    'Nómina': c.author,
     'Fecha': c.at ? new Date(c.at).toLocaleString('es-MX') : '',
     'Comentario / Acción': c.comment
   }));
@@ -402,7 +382,7 @@ async function exportCSV(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja2.length?hoja2:[{'Sin comentarios':''}]), 'Seguimiento');
   XLSX.writeFile(wb, `hazards_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
- 
+
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
 </script>
 </body>
