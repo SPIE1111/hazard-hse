@@ -51,7 +51,11 @@
   .seg .who{color:var(--ink);font-weight:600}
   .seg-toggle{color:var(--steel);cursor:pointer;font-weight:600;font-size:12.5px;background:none;border:none;padding:2px 0}
   .seg-none{color:#aab4bd;font-size:12.5px}
-  tr.detail td{background:#fbfcfd;padding-top:0}
+  .foto-ico{font-size:15px}
+  .foto-ico.no{opacity:.25}
+  .fotobox{margin-bottom:14px}
+  .fotobox .k{color:var(--muted);margin-bottom:6px;font-size:14px}
+  .fotobox img{max-width:100%;max-height:220px;border-radius:9px;border:1px solid var(--line);display:block}
   #modal{position:fixed;inset:0;background:rgba(15,34,51,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
   #modal.show{display:flex}
   .sheet{background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow:auto}
@@ -71,7 +75,7 @@
 <script src="xlsx.min.js"></script>
 </head>
 <body>
-
+ 
 <div id="login">
   <div class="card">
     <div class="brand"><div class="mark">HSE</div><h1>Panel HSE</h1></div>
@@ -89,7 +93,7 @@
     <p class="err" id="l-err"></p>
   </div>
 </div>
-
+ 
 <div id="app" class="hide">
   <header>
     <div><span class="mark">HSE</span><b>Panel HSE</b></div>
@@ -114,14 +118,14 @@
     <table>
       <thead><tr>
         <th>Código</th><th>Fecha</th><th class="hide-sm">Empleado</th>
-        <th>Parque</th><th>Categoría</th><th>Estatus</th><th>Seguimiento</th>
+        <th>Parque</th><th>Categoría</th><th>Estatus</th><th>Fotos</th><th>Seguimiento</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
     <p class="muted" id="empty" style="text-align:center;padding:30px;display:none">No hay hazards que coincidan.</p>
   </div>
 </div>
-
+ 
 <div id="modal">
   <div class="sheet">
     <div class="sheet-h">
@@ -131,13 +135,13 @@
     <div class="sheet-b" id="m-body"></div>
   </div>
 </div>
-
+ 
 <script>
 const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; // pública: RLS protege la tabla empleados
 let SESSION = null, HAZARDS = [], _needsPass = false;
 let COMMENTS_BY_CODE = {};
-
+ 
 const CLASIFICACION = [
   {codigo:"A",label:"Transporte"},
   {codigo:"B",label:"Salud / Ergonomía"},
@@ -160,7 +164,7 @@ const CLASIFICACION = [
   {codigo:"S",label:"Medio Ambiente"}
 ];
 const CAT_LABEL = Object.fromEntries(CLASIFICACION.map(c=>[c.codigo, c.label]));
-
+ 
 async function api(action, extra={}){
   const r = await fetch(`${SUPABASE_URL}/functions/v1/panel-api`,{
     method:'POST',
@@ -169,7 +173,7 @@ async function api(action, extra={}){
   });
   return r.json();
 }
-
+ 
 async function doLogin(){
   const err=document.getElementById('l-err');
   const user=document.getElementById('l-user').value.trim();
@@ -199,7 +203,7 @@ async function doLogin(){
   document.getElementById('who').textContent=`${SESSION.full_name} · ${SESSION.role==='admin'?'Administrador':SESSION.country_code}`;
   await loadHazards();
 }
-
+ 
 async function loadHazards(){
   const d=await api('list');
   HAZARDS = d.ok ? d.hazards : [];
@@ -213,18 +217,15 @@ async function loadHazards(){
   buildCategoryFilter();
   render();
 }
-
+ 
 function buildCategoryFilter(){
-  const presentes = [...new Set(HAZARDS.map(h=>h.clasif_codigo).filter(Boolean))];
-  const orden = CLASIFICACION.map(c=>c.codigo);
-  presentes.sort((a,b)=> orden.indexOf(a) - orden.indexOf(b));
   const sel = document.getElementById('fNivel');
   sel.innerHTML = '<option value="">Todas las categorías</option>' +
-    presentes.map(code=>`<option value="${code}">${code} · ${CAT_LABEL[code]||'—'}</option>`).join('');
+    CLASIFICACION.map(c=>`<option value="${c.codigo}">${c.codigo} · ${c.label}</option>`).join('');
 }
-
+ 
 function escapeHtml(s){return String(s??'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
-
+ 
 function segCell(code){
   const list = COMMENTS_BY_CODE[code] || [];
   if(!list.length) return '<span class="seg-none">Sin seguimiento</span>';
@@ -240,7 +241,17 @@ function toggleSeg(id, btn){
   const open=el.classList.toggle('hide')===false;
   btn.textContent = open ? 'Ver menos' : `+ ${el.children.length} más`;
 }
-
+ 
+function fotosCell(h){
+  const ev = h.foto_sharepoint_url ? '📷' : '';
+  const ci = h.foto_cierre_sharepoint_url ? '🏁' : '';
+  if(!ev && !ci) return '<span class="seg-none">—</span>';
+  let out='';
+  if(ev) out += `<a href="${h.foto_sharepoint_url}" target="_blank" title="Foto de evidencia" onclick="event.stopPropagation()" class="foto-ico">📷</a> `;
+  if(ci) out += `<a href="${h.foto_cierre_sharepoint_url}" target="_blank" title="Foto de cierre" onclick="event.stopPropagation()" class="foto-ico">🏁</a>`;
+  return out;
+}
+ 
 function render(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const fe=document.getElementById('fEstatus').value;
@@ -267,20 +278,30 @@ function render(){
       <td>${escapeHtml(h.parque)||''}</td>
       <td>${cat}</td>
       <td><span class="tag ${cls}">${h.estatus||'Abierto'}</span></td>
+      <td>${fotosCell(h)}</td>
       <td onclick="event.stopPropagation()">${segCell(h.hazard_code)}</td></tr>`;
   }).join('');
   document.getElementById('empty').style.display=filtered.length?'none':'block';
 }
-
+ 
 async function openHazard(code){
   const h=HAZARDS.find(x=>x.hazard_code===code);
   if(!h)return;
   document.getElementById('m-code').textContent=h.hazard_code;
   const kv=(k,v)=>v?`<div class="k">${k}</div><div class="v">${escapeHtml(v)}</div>`:'';
-  let foto='';
-  if(h.foto_sharepoint_url){
-    foto=`<h3>Evidencia fotográfica</h3><a href="${h.foto_sharepoint_url}" target="_blank" rel="noopener"><img src="${h.foto_sharepoint_url}" alt="Evidencia" style="max-width:100%;max-height:240px;border-radius:9px;border:1px solid var(--line)" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"/><span class="btn sm ghost" style="display:none">Abrir foto en SharePoint</span></a>`;
-  }
+  const mkFoto = (url, titulo) => {
+    if(!url) return '';
+    return `<div class="fotobox">
+      <div class="k">${titulo}</div>
+      <a href="${url}" target="_blank" rel="noopener" title="Abrir en SharePoint">
+        <img src="${url}" alt="${titulo}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"/>
+        <span class="btn sm ghost" style="display:none">Ver ${titulo} en SharePoint</span>
+      </a>
+    </div>`;
+  };
+  const fotoEv = mkFoto(h.foto_sharepoint_url, 'Foto de evidencia');
+  const fotoCi = mkFoto(h.foto_cierre_sharepoint_url, 'Foto de cierre');
+  const foto = (fotoEv || fotoCi) ? `<h3>Evidencia fotográfica</h3>${fotoEv}${fotoCi}` : '';
   const catTxt = h.clasif_codigo ? `${h.clasif_codigo} · ${CAT_LABEL[h.clasif_codigo]||''}` : '';
   document.getElementById('m-body').innerHTML=`
     <div class="kv">
@@ -313,7 +334,7 @@ async function openHazard(code){
   document.getElementById('modal').classList.add('show');
   loadComments(h.hazard_code);
 }
-
+ 
 async function loadComments(code){
   const d=await api('get-comments',{code});
   const el=document.getElementById('m-comments');
@@ -322,14 +343,14 @@ async function loadComments(code){
     `<div class="cmt"><div class="meta"><b>${i+1}.</b> Nómina ${escapeHtml(c.author)} · ${new Date(c.at).toLocaleString('es-MX')}</div>${escapeHtml(c.comment)}</div>`
   ).join('');
 }
-
+ 
 async function saveStatus(code){
   const status=document.getElementById('m-status').value;
   const d=await api('status',{code,status});
   if(d.ok){const h=HAZARDS.find(x=>x.hazard_code===code);if(h)h.estatus=status;render();alert('Estatus actualizado.');}
   else alert(d.error||'No se pudo actualizar.');
 }
-
+ 
 async function addComment(code){
   const comment=document.getElementById('m-newcomment').value.trim();
   if(!comment)return;
@@ -344,10 +365,10 @@ async function addComment(code){
     render();
   } else alert(d.error||'No se pudo agregar.');
 }
-
+ 
 function closeModal(){document.getElementById('modal').classList.remove('show');}
 function logout(){SESSION=null;location.reload();}
-
+ 
 async function exportCSV(){
   if (typeof XLSX === 'undefined') { alert('La librería de Excel no cargó. Verifica que xlsx.min.js esté subido junto al panel.'); return; }
   const [exp, com] = await Promise.all([ api('export'), api('all-comments') ]);
@@ -368,7 +389,8 @@ async function exportCSV(){
     'Estatus': h.estatus,
     'Fecha cierre': h.fecha_cierre || '',
     'HSE': h.hse_name,
-    'Foto (SharePoint)': h.foto_sharepoint_url || '',
+    'Foto evidencia (SharePoint)': h.foto_sharepoint_url || '',
+    'Foto cierre (SharePoint)': h.foto_cierre_sharepoint_url || '',
     'Seguimiento (resumen)': h.seguimiento || ''
   }));
   const hoja2 = comments.map(c=>({
@@ -382,7 +404,7 @@ async function exportCSV(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja2.length?hoja2:[{'Sin comentarios':''}]), 'Seguimiento');
   XLSX.writeFile(wb, `hazards_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
-
+ 
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
 </script>
 </body>
