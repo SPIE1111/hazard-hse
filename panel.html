@@ -25,11 +25,17 @@
   .btn:hover{background:#08324f}
   .btn.sm{width:auto;padding:8px 14px;font-size:13px;margin:0}
   .btn.ghost{background:transparent;color:var(--steel);border:1px solid var(--line)}
+  .btn.danger{background:var(--red)}
+  .btn.danger:hover{background:#a5321f}
+  .btn.green{background:var(--green)}
+  .btn.green:hover{background:#146c3a}
   .err{color:var(--red);font-size:13px;margin-top:12px;display:none}
   .err.show{display:block}
   header{background:var(--steel);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
   header .who{font-size:13px;opacity:.9}
   header .mark{width:30px;height:30px;background:rgba(255,255,255,.12);border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:var(--amber);font-weight:800;margin-right:10px}
+  .navbtn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin:0}
+  .navbtn.active{background:var(--amber);color:var(--steel);border-color:var(--amber)}
   .wrap{max-width:1100px;margin:0 auto;padding:20px}
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
   .toolbar input,.toolbar select{width:auto;flex:1;min-width:130px}
@@ -45,6 +51,8 @@
   .tag.abierto{background:#fff3d6;color:#8a6d00}
   .tag.cerrado{background:#daf5e5;color:var(--green)}
   .tag.proceso{background:#e3edf7;color:var(--steel)}
+  .tag.activo{background:#daf5e5;color:var(--green)}
+  .tag.baja{background:#f6dcd8;color:var(--red)}
   .catcode{font-weight:700;color:var(--steel)}
   .seg{font-size:12.5px;color:var(--muted)}
   .seg .one{margin-bottom:2px}
@@ -70,12 +78,22 @@
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .muted{color:var(--muted);font-size:13px}
   h3{font-size:15px;margin:18px 0 10px;font-weight:700}
+  .acts{display:flex;gap:6px;flex-wrap:wrap}
+  .mini{padding:5px 10px;font-size:12px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:600;color:var(--steel)}
+  .mini:hover{background:#f2f6fa}
+  .mini.red{color:var(--red);border-color:#eecac3}
+  .mini.green{color:var(--green);border-color:#c4e8d3}
+  .bulk-help{background:#f6f9fc;border:1px solid var(--line);border-radius:9px;padding:12px 14px;font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.6}
+  .bulk-help code{background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px;color:var(--ink);display:inline-block;white-space:pre;font-family:'Courier New',monospace}
+  .bulk-res{margin-top:12px;font-size:13px}
+  .bulk-res .okc{color:var(--green);font-weight:700}
+  .bulk-res .failc{color:var(--red);font-weight:700}
   @media(max-width:640px){.kv{grid-template-columns:1fr}.hide-sm{display:none}}
 </style>
 <script src="xlsx.min.js"></script>
 </head>
 <body>
- 
+
 <div id="login">
   <div class="card">
     <div class="brand"><div class="mark">HSE</div><h1>Panel HSE</h1></div>
@@ -93,16 +111,20 @@
     <p class="err" id="l-err"></p>
   </div>
 </div>
- 
+
 <div id="app" class="hide">
   <header>
     <div><span class="mark">HSE</span><b>Panel HSE</b></div>
     <div class="row">
+      <button class="navbtn active" id="nav-hazards" onclick="showView('hazards')">Hazards</button>
+      <button class="navbtn hide" id="nav-emp" onclick="showView('emp')">Empleados</button>
       <span class="who" id="who"></span>
       <button class="btn sm ghost" style="color:#fff;border-color:rgba(255,255,255,.3)" onclick="logout()">Salir</button>
     </div>
   </header>
-  <div class="wrap">
+
+  <!-- VISTA HAZARDS -->
+  <div class="wrap" id="view-hazards">
     <div class="stat" id="stats"></div>
     <div class="toolbar">
       <input id="q" placeholder="Buscar por empleado, parque, código..." oninput="render()"/>
@@ -124,8 +146,31 @@
     </table>
     <p class="muted" id="empty" style="text-align:center;padding:30px;display:none">No hay hazards que coincidan.</p>
   </div>
+
+  <!-- VISTA EMPLEADOS (solo admin) -->
+  <div class="wrap hide" id="view-emp">
+    <div class="toolbar">
+      <input id="emp-q" placeholder="Buscar por nombre o nómina..." oninput="renderEmp()"/>
+      <select id="emp-filter" onchange="renderEmp()">
+        <option value="activos">Solo activos</option>
+        <option value="todos">Todos (incluye bajas)</option>
+        <option value="bajas">Solo bajas</option>
+      </select>
+      <button class="btn sm" onclick="openEmpForm()">+ Alta individual</button>
+      <button class="btn sm ghost" onclick="openBulk()">Carga masiva</button>
+    </div>
+    <div class="stat" id="emp-stats"></div>
+    <table>
+      <thead><tr>
+        <th>Nómina</th><th>Nombre</th><th class="hide-sm">País</th>
+        <th class="hide-sm">HSE</th><th>Estado</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="emp-rows"></tbody>
+    </table>
+    <p class="muted" id="emp-empty" style="text-align:center;padding:30px;display:none">No hay empleados que coincidan.</p>
+  </div>
 </div>
- 
+
 <div id="modal">
   <div class="sheet">
     <div class="sheet-h">
@@ -135,13 +180,15 @@
     <div class="sheet-b" id="m-body"></div>
   </div>
 </div>
- 
+
 <script>
 const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; // pública: RLS protege la tabla empleados
+
 let SESSION = null, HAZARDS = [], _needsPass = false;
 let COMMENTS_BY_CODE = {};
- 
+let EMPLEADOS = [], EMP_CAT = null; // catálogos: paises, hse, oficinas
+
 const CLASIFICACION = [
   {codigo:"A",label:"Transporte"},
   {codigo:"B",label:"Salud / Ergonomía"},
@@ -164,7 +211,7 @@ const CLASIFICACION = [
   {codigo:"S",label:"Medio Ambiente"}
 ];
 const CAT_LABEL = Object.fromEntries(CLASIFICACION.map(c=>[c.codigo, c.label]));
- 
+
 async function api(action, extra={}){
   const r = await fetch(`${SUPABASE_URL}/functions/v1/panel-api`,{
     method:'POST',
@@ -173,7 +220,7 @@ async function api(action, extra={}){
   });
   return r.json();
 }
- 
+
 async function doLogin(){
   const err=document.getElementById('l-err');
   const user=document.getElementById('l-user').value.trim();
@@ -201,9 +248,13 @@ async function doLogin(){
   document.getElementById('login').classList.add('hide');
   document.getElementById('app').classList.remove('hide');
   document.getElementById('who').textContent=`${SESSION.full_name} · ${SESSION.role==='admin'?'Administrador':SESSION.country_code}`;
+  // Mostrar pestaña Empleados solo para admin
+  if(SESSION.role==='admin'){
+    document.getElementById('nav-emp').classList.remove('hide');
+  }
   await loadHazards();
 }
- 
+
 async function loadHazards(){
   const d=await api('list');
   HAZARDS = d.ok ? d.hazards : [];
@@ -217,15 +268,26 @@ async function loadHazards(){
   buildCategoryFilter();
   render();
 }
- 
+
 function buildCategoryFilter(){
   const sel = document.getElementById('fNivel');
   sel.innerHTML = '<option value="">Todas las categorías</option>' +
     CLASIFICACION.map(c=>`<option value="${c.codigo}">${c.codigo} · ${c.label}</option>`).join('');
 }
- 
+
 function escapeHtml(s){return String(s??'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
- 
+
+// ═══════════ NAVEGACIÓN ENTRE VISTAS ═══════════
+function showView(v){
+  const isHaz = v==='hazards';
+  document.getElementById('view-hazards').classList.toggle('hide', !isHaz);
+  document.getElementById('view-emp').classList.toggle('hide', isHaz);
+  document.getElementById('nav-hazards').classList.toggle('active', isHaz);
+  document.getElementById('nav-emp').classList.toggle('active', !isHaz);
+  if(!isHaz && !EMP_CAT){ loadEmpleados(); }
+}
+
+// ═══════════ HAZARDS (sin cambios) ═══════════
 function segCell(code){
   const list = COMMENTS_BY_CODE[code] || [];
   if(!list.length) return '<span class="seg-none">Sin seguimiento</span>';
@@ -241,7 +303,7 @@ function toggleSeg(id, btn){
   const open=el.classList.toggle('hide')===false;
   btn.textContent = open ? 'Ver menos' : `+ ${el.children.length} más`;
 }
- 
+
 function fotosCell(h){
   const ev = h.foto_sharepoint_url ? '📷' : '';
   const ci = h.foto_cierre_sharepoint_url ? '🏁' : '';
@@ -251,7 +313,7 @@ function fotosCell(h){
   if(ci) out += `<a href="${h.foto_cierre_sharepoint_url}" target="_blank" title="Foto de cierre" onclick="event.stopPropagation()" class="foto-ico">🏁</a>`;
   return out;
 }
- 
+
 function render(){
   const q=(document.getElementById('q').value||'').toLowerCase();
   const fe=document.getElementById('fEstatus').value;
@@ -283,7 +345,7 @@ function render(){
   }).join('');
   document.getElementById('empty').style.display=filtered.length?'none':'block';
 }
- 
+
 async function openHazard(code){
   const h=HAZARDS.find(x=>x.hazard_code===code);
   if(!h)return;
@@ -334,7 +396,7 @@ async function openHazard(code){
   document.getElementById('modal').classList.add('show');
   loadComments(h.hazard_code);
 }
- 
+
 async function loadComments(code){
   const d=await api('get-comments',{code});
   const el=document.getElementById('m-comments');
@@ -343,14 +405,14 @@ async function loadComments(code){
     `<div class="cmt"><div class="meta"><b>${i+1}.</b> Nómina ${escapeHtml(c.author)} · ${new Date(c.at).toLocaleString('es-MX')}</div>${escapeHtml(c.comment)}</div>`
   ).join('');
 }
- 
+
 async function saveStatus(code){
   const status=document.getElementById('m-status').value;
   const d=await api('status',{code,status});
   if(d.ok){const h=HAZARDS.find(x=>x.hazard_code===code);if(h)h.estatus=status;render();alert('Estatus actualizado.');}
   else alert(d.error||'No se pudo actualizar.');
 }
- 
+
 async function addComment(code){
   const comment=document.getElementById('m-newcomment').value.trim();
   if(!comment)return;
@@ -365,10 +427,10 @@ async function addComment(code){
     render();
   } else alert(d.error||'No se pudo agregar.');
 }
- 
+
 function closeModal(){document.getElementById('modal').classList.remove('show');}
 function logout(){SESSION=null;location.reload();}
- 
+
 async function exportCSV(){
   if (typeof XLSX === 'undefined') { alert('La librería de Excel no cargó. Verifica que xlsx.min.js esté subido junto al panel.'); return; }
   const [exp, com] = await Promise.all([ api('export'), api('all-comments') ]);
@@ -404,7 +466,221 @@ async function exportCSV(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoja2.length?hoja2:[{'Sin comentarios':''}]), 'Seguimiento');
   XLSX.writeFile(wb, `hazards_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
- 
+
+// ═══════════════════════════════════════════════
+// MANTENIMIENTO DE EMPLEADOS (solo admin)
+// ═══════════════════════════════════════════════
+function paisNombre(id){ const p=(EMP_CAT?.paises||[]).find(x=>x.id===id); return p?`${p.flag_emoji} ${p.name}`:('País '+id); }
+function paisCode(id){ const p=(EMP_CAT?.paises||[]).find(x=>x.id===id); return p?p.code:''; }
+function codeToPaisId(code){ const p=(EMP_CAT?.paises||[]).find(x=>x.code===String(code).toUpperCase()); return p?p.id:null; }
+function zonasDePais(id){ return (EMP_CAT?.hse||[]).filter(h=>h.country_id===id); }
+
+async function loadEmpleados(){
+  const cat = await api('emp-catalogos');
+  if(!cat.ok){ alert(cat.error||'No se pudieron cargar los catálogos.'); return; }
+  EMP_CAT = cat;
+  const d = await api('emp-list', {incluir_bajas:true});
+  EMPLEADOS = d.ok ? (d.employees||[]) : [];
+  renderEmp();
+}
+
+function renderEmp(){
+  const q=(document.getElementById('emp-q').value||'').toLowerCase();
+  const filtro=document.getElementById('emp-filter').value;
+  let list = EMPLEADOS.filter(e=>{
+    const txt=`${e.payroll_no} ${e.full_name}`.toLowerCase();
+    if(q && !txt.includes(q)) return false;
+    if(filtro==='activos') return e.active;
+    if(filtro==='bajas') return !e.active;
+    return true;
+  });
+  const activos = EMPLEADOS.filter(e=>e.active).length;
+  const bajas = EMPLEADOS.filter(e=>!e.active).length;
+  document.getElementById('emp-stats').innerHTML =
+    `<span class="pill">Total <b>${EMPLEADOS.length}</b></span>`+
+    `<span class="pill">Activos <b>${activos}</b></span>`+
+    `<span class="pill">Bajas <b>${bajas}</b></span>`;
+  const rows=document.getElementById('emp-rows');
+  rows.innerHTML = list.map(e=>{
+    const estado = e.active
+      ? '<span class="tag activo">Activo</span>'
+      : '<span class="tag baja">Baja</span>';
+    const acts = e.active
+      ? `<button class="mini" onclick='editEmp("${e.payroll_no}")'>Editar</button>
+         <button class="mini red" onclick='bajaEmp("${e.payroll_no}","${escapeHtml(e.full_name)}")'>Dar de baja</button>`
+      : `<button class="mini green" onclick='reactivarEmp("${e.payroll_no}")'>Reactivar</button>`;
+    const zona = e.hse_zone ? ` · ${e.hse_zone}` : '';
+    return `<tr>
+      <td><b>${escapeHtml(e.payroll_no)}</b></td>
+      <td>${escapeHtml(e.full_name)}</td>
+      <td class="hide-sm">${paisNombre(e.country_id)}${zona}</td>
+      <td class="hide-sm">${escapeHtml(e.hse_name)||'—'}</td>
+      <td>${estado}</td>
+      <td><div class="acts">${acts}</div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('emp-empty').style.display=list.length?'none':'block';
+}
+
+// ── Formulario de alta / edición ──
+function paisOptions(sel){
+  return (EMP_CAT?.paises||[]).map(p=>
+    `<option value="${p.id}" ${p.id===sel?'selected':''}>${p.flag_emoji} ${p.name}</option>`
+  ).join('');
+}
+function oficinaOptions(paisId, sel){
+  const ofs=(EMP_CAT?.oficinas||[]).filter(o=>o.country_id===paisId || o.country_id===null);
+  return '<option value="">— Sin oficina fija (campo) —</option>'+
+    ofs.map(o=>`<option value="${o.id}" ${o.id===sel?'selected':''}>${escapeHtml(o.name)}</option>`).join('');
+}
+function zonaRow(paisId, selZona){
+  const zonas=zonasDePais(paisId);
+  // Solo mostrar selector de zona si el país tiene más de una zona (México)
+  if(zonas.length>1){
+    return `<label>Zona / HSE</label>
+      <select id="ef-zona">
+        ${zonas.map(z=>`<option value="${z.zone_code}" ${z.zone_code===selZona?'selected':''}>${z.zone_code} · ${escapeHtml(z.full_name)}</option>`).join('')}
+      </select>`;
+  }
+  // País con un solo HSE: mostrar informativo, sin selector
+  const hse=zonas[0];
+  return `<input type="hidden" id="ef-zona" value="${hse?(hse.zone_code||''):''}"/>
+    <p class="muted" style="margin-top:8px">HSE asignado: <b>${hse?escapeHtml(hse.full_name):'—'}</b></p>`;
+}
+
+function empFormHtml(emp){
+  const paisId = emp ? emp.country_id : (EMP_CAT.paises[0]?.id);
+  return `
+    <label>Número de nómina</label>
+    <input id="ef-payroll" value="${emp?escapeHtml(emp.payroll_no):''}" ${emp?'disabled':''} placeholder="Ej. 1234"/>
+    ${emp?'<p class="muted" style="margin-top:4px">La nómina no se puede cambiar.</p>':''}
+    <label>Nombre completo</label>
+    <input id="ef-name" value="${emp?escapeHtml(emp.full_name):''}" placeholder="Nombre y apellidos"/>
+    <label>País</label>
+    <select id="ef-pais" onchange="onEfPaisChange()">${paisOptions(paisId)}</select>
+    <div id="ef-zona-wrap">${zonaRow(paisId, emp?emp.hse_zone:null)}</div>
+    <label>Oficina (opcional)</label>
+    <select id="ef-oficina">${oficinaOptions(paisId, emp?emp.office_id:null)}</select>
+    <button class="btn" onclick="saveEmp(${emp?`'${emp.payroll_no}'`:'null'})">${emp?'Guardar cambios':'Dar de alta'}</button>
+    <p class="err" id="ef-err"></p>`;
+}
+
+function onEfPaisChange(){
+  const paisId=parseInt(document.getElementById('ef-pais').value,10);
+  document.getElementById('ef-zona-wrap').innerHTML=zonaRow(paisId, null);
+  document.getElementById('ef-oficina').innerHTML=oficinaOptions(paisId, null);
+}
+
+function openEmpForm(){
+  document.getElementById('m-code').textContent='Alta de empleado';
+  document.getElementById('m-body').innerHTML=empFormHtml(null);
+  document.getElementById('modal').classList.add('show');
+}
+
+function editEmp(payroll){
+  const emp=EMPLEADOS.find(e=>e.payroll_no===payroll);
+  if(!emp)return;
+  document.getElementById('m-code').textContent='Editar empleado';
+  document.getElementById('m-body').innerHTML=empFormHtml(emp);
+  document.getElementById('modal').classList.add('show');
+}
+
+async function saveEmp(payrollEdit){
+  const err=document.getElementById('ef-err');
+  err.classList.remove('show');
+  const payroll = payrollEdit || document.getElementById('ef-payroll').value.trim();
+  const full_name = document.getElementById('ef-name').value.trim();
+  const country_id = parseInt(document.getElementById('ef-pais').value,10);
+  const zonaEl = document.getElementById('ef-zona');
+  const zone = zonaEl ? (zonaEl.value||null) : null;
+  const ofEl = document.getElementById('ef-oficina');
+  const office_id = ofEl && ofEl.value ? parseInt(ofEl.value,10) : null;
+  if(!payroll || !full_name){ err.textContent='Nómina y nombre son obligatorios.'; err.classList.add('show'); return; }
+  const action = payrollEdit ? 'emp-edit' : 'emp-add';
+  const d = await api(action, {payroll, full_name, country_id, zone, office_id});
+  if(d.ok){ closeModal(); await loadEmpleados(); }
+  else { err.textContent=d.error||'No se pudo guardar.'; err.classList.add('show'); }
+}
+
+async function bajaEmp(payroll, nombre){
+  if(!confirm(`¿Dar de baja a ${nombre} (nómina ${payroll})?\n\nSe conservará su historial de reportes.`)) return;
+  const d=await api('emp-deactivate',{payroll});
+  if(d.ok){ await loadEmpleados(); }
+  else alert(d.error||'No se pudo dar de baja.');
+}
+
+async function reactivarEmp(payroll){
+  const d=await api('emp-reactivate',{payroll});
+  if(d.ok){ await loadEmpleados(); }
+  else alert(d.error||'No se pudo reactivar.');
+}
+
+// ── Carga masiva ──
+function openBulk(){
+  document.getElementById('m-code').textContent='Carga masiva de empleados';
+  document.getElementById('m-body').innerHTML=`
+    <div class="bulk-help">
+      Pega una fila por empleado, con estas columnas en orden:<br><br>
+      <code>Nómina    Nombre completo    País    Zona</code><br><br>
+      • <b>País</b>: usa el código MX, UY, RD o CL.<br>
+      • <b>Zona</b>: solo para México (ESPINAL o CDMX). Los demás países se dejan sin zona.<br>
+      • Separadas por TAB (copiando de Excel) o por comas. El sistema lo detecta.<br><br>
+      Ejemplo:<br>
+      <code>1234    Juan Pérez López    MX    ESPINAL
+1235    María García    MX    CDMX
+1236    Carlos Méndez    UY
+1237    Ana Torres    RD</code>
+    </div>
+    <textarea id="bulk-text" style="min-height:160px" placeholder="Pega aquí las filas..."></textarea>
+    <button class="btn" onclick="procesarBulk()">Procesar carga</button>
+    <div class="bulk-res" id="bulk-res"></div>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+function parseBulkLine(line){
+  // Detecta separador: TAB si existe, si no coma
+  const sep = line.includes('\t') ? '\t' : ',';
+  return line.split(sep).map(s=>s.trim());
+}
+
+async function procesarBulk(){
+  const raw=document.getElementById('bulk-text').value;
+  const res=document.getElementById('bulk-res');
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l.length);
+  if(!lines.length){ res.innerHTML='<span class="failc">No hay filas para procesar.</span>'; return; }
+  const rows=[]; const locales=[];
+  lines.forEach((line,idx)=>{
+    const cols=parseBulkLine(line);
+    const [payroll, full_name, paisCode, zona] = cols;
+    const country_id = codeToPaisId(paisCode);
+    if(!payroll || !full_name || !country_id){
+      locales.push({payroll:payroll||'(vacío)', error:'Fila '+(idx+1)+': faltan datos o país inválido.'});
+      return;
+    }
+    rows.push({payroll, full_name, country_id:String(country_id), zone:(zona||''), office_id:''});
+  });
+  if(!rows.length){
+    res.innerHTML=`<span class="failc">Ninguna fila válida.</span><br>`+
+      locales.map(e=>`<div class="muted">• ${escapeHtml(e.error)}</div>`).join('');
+    return;
+  }
+  res.innerHTML='Procesando...';
+  const d=await api('emp-add-bulk',{rows});
+  if(!d.ok){ res.innerHTML=`<span class="failc">${escapeHtml(d.error||'Error en la carga.')}</span>`; return; }
+  const errServer = (d.errores||[]);
+  const totalFail = locales.length + (d.fallidos||0);
+  let html = `<span class="okc">✓ ${d.agregados||0} agregado(s)</span>`;
+  if(totalFail) html += ` &nbsp; <span class="failc">✗ ${totalFail} no agregado(s)</span>`;
+  const allErrors = [...locales, ...errServer];
+  if(allErrors.length){
+    html += '<div style="margin-top:8px">'+allErrors.map(e=>
+      `<div class="muted">• Nómina ${escapeHtml(e.payroll||'')}: ${escapeHtml(e.error||'')}</div>`
+    ).join('')+'</div>';
+  }
+  res.innerHTML=html;
+  await loadEmpleados(); // refrescar lista detrás del modal
+}
+
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
 </script>
 </body>
