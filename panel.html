@@ -6,8 +6,9 @@
 <title>Panel HSE · SPIE</title>
 <style>
   :root{
-    --ink:#0f2233; --steel:#0a3d62; --line:#dce3ea; --bg:#f4f6f8;
-    --amber:#f5b800; --red:#c0392b; --green:#1a8a4a; --muted:#6b7a89; --white:#fff;
+    --ink:#1a1f3d; --steel:#222953; --line:#dce0ea; --bg:#f4f6f9;
+    --amber:#cc1417; --red:#cc1417; --green:#1a8a4a; --muted:#6b728a; --white:#fff;
+    --spie:#222953; --spie-red:#cc1417;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
@@ -35,7 +36,7 @@
   header .who{font-size:13px;opacity:.9}
   header .mark{width:30px;height:30px;background:rgba(255,255,255,.12);border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:var(--amber);font-weight:800;margin-right:10px}
   .navbtn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin:0}
-  .navbtn.active{background:var(--amber);color:var(--steel);border-color:var(--amber)}
+  .navbtn.active{background:var(--spie-red);color:#fff;border-color:var(--spie-red)}
   .wrap{max-width:1100px;margin:0 auto;padding:20px}
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
   .toolbar input,.toolbar select{width:auto;flex:1;min-width:130px}
@@ -96,7 +97,7 @@
 
 <div id="login">
   <div class="card">
-    <div class="brand"><div class="mark">HSE</div><h1>Panel HSE</h1></div>
+    <div class="brand"><img src="spie-logo.png" alt="SPIE Hazard" style="width:44px;height:44px;border-radius:9px"/><h1>Panel HSE</h1></div>
     <p class="sub">Gestión de reportes · SPIE</p>
     <label>Usuario</label>
     <input id="l-user" autocomplete="username" placeholder="Nómina o usuario"/>
@@ -114,7 +115,7 @@
 
 <div id="app" class="hide">
   <header>
-    <div><span class="mark">HSE</span><b>Panel HSE</b></div>
+    <div style="display:flex;align-items:center;gap:10px"><img src="spie-logo.png" alt="SPIE" style="width:30px;height:30px;border-radius:7px"/><b>Panel HSE</b></div>
     <div class="row">
       <button class="navbtn active" id="nav-hazards" onclick="showView('hazards')">Hazards</button>
       <button class="navbtn hide" id="nav-emp" onclick="showView('emp')">Empleados</button>
@@ -184,7 +185,6 @@
 <script>
 const SUPABASE_URL = "https://lzvkrechpvxuaczvhfwh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmtyZWNocHZ4dWFjenZoZndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1NzMsImV4cCI6MjA5NzM2NjU3M30.qLxLeMl7vVusb1jC4R_nQWYxdRWSB9GK-xcvbGAo-oA"; // pública: RLS protege la tabla empleados
-
 let SESSION = null, HAZARDS = [], _needsPass = false;
 let COMMENTS_BY_CODE = {};
 let EMPLEADOS = [], EMP_CAT = null; // catálogos: paises, hse, oficinas
