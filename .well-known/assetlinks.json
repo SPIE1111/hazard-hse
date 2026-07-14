@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "io.github.spie1111.twa",
-        "sha256_cert_fingerprints": ["21:F7:C8:67:29:6F:43:9C:C7:F0:9D:27:12:8D:C8:51:30:60:EE:6D:24:13:BE:A3:49:BE:E8:F3:1B:EF:7C:7F"]
+        "sha256_cert_fingerprints": ["2C:69:2E:BB:18:9A:BF:1D:BF:B7:01:34:23:D6:B2:06:25:D0:59:70:57:25:53:0B:E6:40:75:37:2F:F4:C7:D9"]
       }
     }]
