@@ -1,18 +1,30 @@
 {
-  "name": "Hazard HSE · SPIE",
+  "name": "Hazard HSE",
   "short_name": "Hazard HSE",
   "description": "Reporte de condiciones y actos inseguros",
-  "id": "/hazard-hse/",
-  "start_url": "/hazard-hse/index.html",
-  "scope": "/hazard-hse/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#222953",
-  "theme_color": "#222953",
+  "background_color": "#1a237e",
+  "theme_color": "#1a237e",
   "icons": [
-    { "src": "/hazard-hse/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/hazard-hse/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/hazard-hse/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/hazard-hse/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
